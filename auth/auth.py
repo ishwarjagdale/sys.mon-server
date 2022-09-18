@@ -2,6 +2,7 @@ import hashlib
 import json
 from functools import wraps
 from flask import make_response, request
+from flask import current_app as app
 from flask_restful import Resource, reqparse, abort
 from datetime import datetime, timedelta
 from database import Users, db
@@ -21,18 +22,13 @@ class Authorized:
         self.session = dict()
 
 
-authorized = Authorized()
-
-
 def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         token = request.cookies.get('token')
         print("Found token", token)
         if token:
-            print("FIRST HERE")
-            curr = authorized.session.get(token)
-            print(curr, "SECOND HERE")
+            curr = app.authorized.session.get(token)
             if curr and datetime.now() < curr['expires']:
                 print("GOT HERE")
                 return func(*args, **kwargs)
@@ -48,8 +44,8 @@ class Login(Resource):
         res = make_response(json.dumps({"message": "success"}), 200)
         token = user.generate_token()
         res.set_cookie('token', token, httponly=True, secure=True, samesite="None", max_age=3600 * 24)
-        authorized.session[token] = {"user": user.email_addr, "expires": datetime.now() + timedelta(1)}
-        print(*authorized.session.items())
+        app.authorized.session[token] = {"user": user.email_addr, "expires": datetime.now() + timedelta(1)}
+        print(*app.authorized.session.items())
         return res
 
     def post(self):
@@ -93,7 +89,8 @@ class Register(Resource):
 class Logout(Resource):
     @login_required
     def get(self):
-        authorized.session.pop(request.cookies.get('token'))
+        app.authorized.session.pop(request.cookies.get('token'))
+        print(app.authorized.session)
         res = make_response(json.dumps({"message": "logged out"}), 200)
         res.delete_cookie('token')
         return res

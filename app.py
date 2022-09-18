@@ -2,7 +2,7 @@ from flask import Flask
 from flask_restful import Api, Resource
 from database import db
 from flask_cors import CORS
-from auth.auth import Login, Register, Logout, ResetPassword
+from auth.auth import Login, Register, Logout, ResetPassword, Authorized
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -10,6 +10,7 @@ api = Api(app)
 cors = CORS(app, supports_credentials=True)
 
 with app.app_context():
+    app.authorized = Authorized()
     db.init_app(app)
     db.create_all()
 

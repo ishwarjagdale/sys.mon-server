@@ -19,15 +19,12 @@ class System(Resource):
 
     @login_required
     def get(self):
-        args = System.get_sys.parse_args()
         user = System.get_user()
         if not user:
             return abort(401, message="invalid session, need re-authentication")
-        system = Systems.get_system(args['sys_id'], user)
-        print("system: ", system)
-        if system:
-            return output_json(system.to_dict(), 200)
-        return abort(404)
+        systems = Systems.get_systems(user['user_id'])
+        # print("system: ", systems)
+        return output_json(systems, 200)
 
     @login_required
     def post(self):

@@ -1,9 +1,7 @@
 import hashlib
-import json
 from functools import wraps
-from flask import make_response, request
 from flask import current_app as app
-from flask_restful import Resource, reqparse, abort
+from flask_restful import Resource, reqparse, abort, output_json, request
 from datetime import datetime, timedelta
 from database import Users, db
 
@@ -41,15 +39,20 @@ class Login(Resource):
 
     @login_required
     def get(self):
-        print("Log in check :", app.authorized.session.get(request.cookies.get('token')))
-        return 200
+        session = app.authorized.session.get(request.cookies.get('token'))
+        print("Log in check :", session)
+        if session:
+            user = Users.get_user(user_id=session['user_id'])
+            return output_json(user.to_dict(), 200)
+        return abort(401, message="Unauthorized Access")
 
     @staticmethod
     def generate_session(user):
-        res = make_response(json.dumps({"message": "success", "user_id": user.user_id}), 200)
+        res = output_json(user.to_dict(), 200)
         token = user.generate_token()
         res.set_cookie('token', token, httponly=True, secure=True, samesite="None", max_age=3600 * 24)
-        app.authorized.session[token] = {"user_id": user.user_id, "user": user.email_addr, "expires": datetime.now() + timedelta(1)}
+        app.authorized.session[token] = {"user_id": user.user_id, "user": user.email_addr,
+                                         "expires": datetime.now() + timedelta(1)}
         print(*app.authorized.session.items())
         return res
 
@@ -98,11 +101,12 @@ class Logout(Resource):
     def get(self):
         app.authorized.session.pop(request.cookies.get('token'))
         print(app.authorized.session)
-        res = make_response(json.dumps({"message": "logged out"}), 200)
+        res = output_json({"message": "logged out"}, 200)
         res.delete_cookie('token')
         return res
 
 
 class ResetPassword(Resource):
-    def get(self):
+    @staticmethod
+    def get():
         return 200

@@ -31,7 +31,7 @@ api.add_resource(Logout, '/auth/logout')
 api.add_resource(ResetPassword, '/auth/reset-password')
 
 # System
-api.add_resource(System, '/system')
+api.add_resource(System, '/api/system')
 
 
 if __name__ == "__main__":

@@ -17,8 +17,12 @@ class Users(db.Model):
     authenticated = db.Column(db.BOOLEAN, default=False, nullable=False)
 
     @staticmethod
-    def get_user(email):
-        return Users.query.filter_by(email_addr=email).first()
+    def get_user(email=None, user_id=None):
+        if email:
+            return Users.query.filter_by(email_addr=email).first()
+        if user_id:
+            return Users.query.filter_by(user_id=user_id).first()
+        return False
 
     def check_password(self, password):
         return hashlib.sha256(bytes(str(self.date_created.timestamp()).replace(".", password), encoding='utf-8')). \
@@ -29,6 +33,13 @@ class Users(db.Model):
             f"{current_app.config['SECRET_KEY']}.{self.email_addr}.{datetime.now().timestamp()}",
             encoding='utf-8')
         ).hexdigest()
+
+    def to_dict(self):
+        return {
+            'user_id': self.user_id,
+            'name': self.name,
+            'email': self.email_addr
+        }
 
 
 def generate_sys_id(context):
@@ -58,9 +69,14 @@ class Systems(db.Model):
 
         return Systems.get_system(system.sys_id, system.user_id)
 
+    @staticmethod
+    def get_systems(user_id):
+        return [x.to_dict() for x in Systems.query.filter_by(user_id=user_id).all()]
+
     def to_dict(self):
         return {
             "sys_id": self.sys_id,
             "name": self.name,
-            'user_id': self.user_id
+            "user_id": self.user_id,
+            "ip_addr": self.ip_addr
         }

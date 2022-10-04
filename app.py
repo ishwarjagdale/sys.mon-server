@@ -2,7 +2,8 @@ from flask import Flask
 from flask_restful import Api, Resource
 from database import db
 from flask_cors import CORS
-from auth.auth import Login, Register, Logout, ResetPassword, Authorized
+from modules.auth import Login, Register, Logout, ResetPassword, Authorized
+from modules.system import System
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -22,10 +23,16 @@ class HelloWorld(Resource):
 
 
 api.add_resource(HelloWorld, '/')
+
+# Authentication
 api.add_resource(Login, '/auth/login')
 api.add_resource(Register, '/auth/get-started')
 api.add_resource(Logout, '/auth/logout')
 api.add_resource(ResetPassword, '/auth/reset-password')
+
+# System
+api.add_resource(System, '/system')
+
 
 if __name__ == "__main__":
     try:

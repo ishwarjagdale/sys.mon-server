@@ -29,8 +29,8 @@ def login_required(func):
         print("Found token", token)
         if token:
             curr = app.authorized.session.get(token)
+            print(curr)
             if curr and datetime.now() < curr['expires']:
-                print("GOT HERE")
                 return func(*args, **kwargs)
 
         abort(401, message="Unauthorized Access")
@@ -39,17 +39,23 @@ def login_required(func):
 
 class Login(Resource):
 
+    @login_required
+    def get(self):
+        print("Log in check :", app.authorized.session.get(request.cookies.get('token')))
+        return 200
+
     @staticmethod
     def generate_session(user):
-        res = make_response(json.dumps({"message": "success"}), 200)
+        res = make_response(json.dumps({"message": "success", "user_id": user.user_id}), 200)
         token = user.generate_token()
         res.set_cookie('token', token, httponly=True, secure=True, samesite="None", max_age=3600 * 24)
-        app.authorized.session[token] = {"user": user.email_addr, "expires": datetime.now() + timedelta(1)}
+        app.authorized.session[token] = {"user_id": user.user_id, "user": user.email_addr, "expires": datetime.now() + timedelta(1)}
         print(*app.authorized.session.items())
         return res
 
     def post(self):
         args = login_args.parse_args()
+        print(args)
         email = args['email']
         password = args['password']
 
@@ -59,7 +65,8 @@ class Login(Resource):
 
         if user.check_password(password):
             return self.generate_session(user)
-        return 401
+        else:
+            return abort(401, message="invalid credentials")
 
 
 class Register(Resource):

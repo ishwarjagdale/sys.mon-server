@@ -1,17 +1,23 @@
+import os
+
 from flask import Flask
 from flask_restful import Api, Resource
 from database import db
 from flask_cors import CORS
-from modules.auth import Login, Register, Logout, ResetPassword, Authorized
+from flask_session import Session
+from modules.auth import Login, Register, Logout, ResetPassword
 from modules.system import System
+from os import environ
 
 app = Flask(__name__)
-app.config.from_pyfile('config.py')
+app.secret_key = environ['SECRET_KEY']
+app.config["SESSION_TYPE"] = 'filesystem'
 api = Api(app)
 cors = CORS(app, supports_credentials=True)
+Session(app)
 
 with app.app_context():
-    app.authorized = Authorized()
+    app.config.from_pyfile('config.py')
     db.init_app(app)
     db.create_all()
 

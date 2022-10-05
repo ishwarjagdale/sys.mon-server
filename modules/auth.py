@@ -1,7 +1,6 @@
 import hashlib
 from datetime import datetime, timezone, timedelta
 from functools import wraps
-
 from flask import session
 from flask_restful import Resource, reqparse, abort, output_json, request
 
@@ -16,10 +15,10 @@ register_args.add_argument('name', type=str, required=True, help="missing name")
 register_args.add_argument('email', type=str, required=True, help="missing email")
 register_args.add_argument('password', type=str, required=True, help="missing password")
 
-
-class Authorized:
-    def __init__(self):
-        self.session = dict()
+#
+# class Authorized:
+#     def __init__(self):
+#         self.session = dict()
 
 
 def login_required(func):
@@ -28,7 +27,7 @@ def login_required(func):
         token = request.cookies.get('token')
         print("Found token", token, end=' ')
         if token:
-            curr = session.get(token)
+            curr = session[token]
             print(curr)
             if curr and datetime.now(tz=timezone.utc) < curr['expires']:
                 return func(*args, **kwargs)
@@ -42,7 +41,7 @@ class Login(Resource):
 
     @login_required
     def get(self):
-        user_session = session.get(request.cookies.get('token'))
+        user_session = session[request.cookies.get('token')]
         print("Log in check :", user_session)
         if user_session:
             user = Users.get_user(user_id=user_session['user_id'])
@@ -55,8 +54,8 @@ class Login(Resource):
         token = user.generate_token()
         res.set_cookie('token', token, httponly=True, secure=True, samesite="None", max_age=3600 * 24)
         session[token] = {"user_id": user.user_id, "user": user.email_addr,
-                          "expires": datetime.now() + timedelta(1)}
-        print(*session.items())
+                          "expires": datetime.now(tz=timezone.utc) + timedelta(1)}
+        print(session.__dict__)
         return res
 
     def post(self):

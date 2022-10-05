@@ -1,8 +1,10 @@
 import hashlib
+from datetime import datetime, timezone, timedelta
 from functools import wraps
-from flask import current_app as app
+
+from flask import session
 from flask_restful import Resource, reqparse, abort, output_json, request
-from datetime import datetime, timedelta
+
 from database import Users, db
 
 login_args = reqparse.RequestParser(bundle_errors=True)
@@ -24,14 +26,15 @@ def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         token = request.cookies.get('token')
-        print("Found token", token)
+        print("Found token", token, end=' ')
         if token:
-            curr = app.authorized.session.get(token)
+            curr = session.get(token)
             print(curr)
-            if curr and datetime.now() < curr['expires']:
+            if curr and datetime.now(tz=timezone.utc) < curr['expires']:
                 return func(*args, **kwargs)
 
         abort(401, message="Unauthorized Access")
+
     return wrapper
 
 
@@ -39,10 +42,10 @@ class Login(Resource):
 
     @login_required
     def get(self):
-        session = app.authorized.session.get(request.cookies.get('token'))
-        print("Log in check :", session)
-        if session:
-            user = Users.get_user(user_id=session['user_id'])
+        user_session = session.get(request.cookies.get('token'))
+        print("Log in check :", user_session)
+        if user_session:
+            user = Users.get_user(user_id=user_session['user_id'])
             return output_json(user.to_dict(), 200)
         return abort(401, message="Unauthorized Access")
 
@@ -51,9 +54,9 @@ class Login(Resource):
         res = output_json(user.to_dict(), 200)
         token = user.generate_token()
         res.set_cookie('token', token, httponly=True, secure=True, samesite="None", max_age=3600 * 24)
-        app.authorized.session[token] = {"user_id": user.user_id, "user": user.email_addr,
-                                         "expires": datetime.now() + timedelta(1)}
-        print(*app.authorized.session.items())
+        session[token] = {"user_id": user.user_id, "user": user.email_addr,
+                          "expires": datetime.now() + timedelta(1)}
+        print(*session.items())
         return res
 
     def post(self):
@@ -99,8 +102,8 @@ class Register(Resource):
 class Logout(Resource):
     @login_required
     def get(self):
-        app.authorized.session.pop(request.cookies.get('token'))
-        print(app.authorized.session)
+        session.pop(request.cookies.get('token'))
+        print(session)
         res = output_json({"message": "logged out"}, 200)
         res.delete_cookie('token')
         return res

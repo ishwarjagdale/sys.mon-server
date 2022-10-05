@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse, request, output_json, abort
-from flask_restful import current_app as app
+from flask import session
 from modules.auth import login_required
 from database import Systems
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,7 +15,7 @@ class System(Resource):
 
     @staticmethod
     def get_user():
-        return app.authorized.session.get(request.cookies.get('token'))
+        return session.get(request.cookies.get('token'))
 
     @login_required
     def get(self):
@@ -23,7 +23,7 @@ class System(Resource):
         if not user:
             return abort(401, message="invalid session, need re-authentication")
         systems = Systems.get_systems(user['user_id'])
-        # print("system: ", systems)
+        print(f"{user['user']} system: ", systems)
         return output_json(systems, 200)
 
     @login_required

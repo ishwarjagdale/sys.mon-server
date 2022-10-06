@@ -16,6 +16,28 @@ class Users(db.Model):
     date_created = db.Column(db.DateTime, default=datetime.now(), nullable=False)
     authenticated = db.Column(db.BOOLEAN, default=False, nullable=False)
 
+    @property
+    def is_active(self):
+        return self.authenticated
+
+    @property
+    def is_authenticated(self):
+        return self.is_active
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.user_id)
+
+    def __eq__(self, other):
+        if isinstance(other, Users):
+            return self.get_id() == other.get_id()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     @staticmethod
     def get_user(email=None, user_id=None):
         if email:

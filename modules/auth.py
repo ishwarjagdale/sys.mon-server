@@ -86,7 +86,7 @@ class Login(Resource):
         if user.check_password(password):
             # return self.generate_session(user)
             if user.is_authenticated:
-                if login_user(user, remember=True):
+                if login_user(user):
                     return output_json(user.to_dict(), 200)
                 return abort(400, message="something went wrong")
             return abort(403, message="needs authentication")
@@ -166,7 +166,7 @@ class AuthUser(Resource):
             if user:
                 if user.authenticate():
                     tkn.consume()
-                    if login_user(user, remember=True):
+                    if login_user(user):
                         return output_json({'message': 'authentication successful'}, 200)
                     return abort(500, message="Login failed")
                 return abort(500, message="Authentication Failed")

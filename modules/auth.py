@@ -1,10 +1,10 @@
 import hashlib
-from datetime import datetime, timezone, timedelta
-from functools import wraps
-from flask import session
-from flask_restful import Resource, reqparse, abort, output_json, request
+from datetime import datetime
+
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from database import Users, db
+from flask_restful import Resource, reqparse, abort, output_json, current_app as app
+from modules.email import server
+from database import Users, db, VerificationTokens
 
 login_args = reqparse.RequestParser(bundle_errors=True)
 login_args.add_argument('email', type=str, required=True, help="missing email")
@@ -14,6 +14,12 @@ register_args = reqparse.RequestParser(bundle_errors=True)
 register_args.add_argument('name', type=str, required=True, help="missing name")
 register_args.add_argument('email', type=str, required=True, help="missing email")
 register_args.add_argument('password', type=str, required=True, help="missing password")
+
+verification_args = reqparse.RequestParser(bundle_errors=True)
+verification_args.add_argument('token', type=str, required=True, help='missing token')
+
+recover_args = reqparse.RequestParser(bundle_errors=True)
+recover_args.add_argument('email', type=str, required=True, help='missing email')
 
 login_manager = LoginManager()
 
@@ -79,8 +85,11 @@ class Login(Resource):
 
         if user.check_password(password):
             # return self.generate_session(user)
-            login_user(user, remember=True)
-            return output_json(user.to_dict(), 200)
+            if user.is_authenticated:
+                if login_user(user, remember=True):
+                    return output_json(user.to_dict(), 200)
+                return abort(400, message="something went wrong")
+            return abort(403, message="needs authentication")
         else:
             return abort(401, message="invalid credentials")
 
@@ -104,9 +113,16 @@ class Register(Resource):
         db.session.add(user)
         db.session.commit()
 
-        if Users.get_user(user.email_addr):
+        user = Users.get_user(user.email_addr)
+        if user:
             # return Login.generate_session(user)
-            login_user(user, remember=True)
+            # login_user(user, remember=True)
+            tkn = VerificationTokens.new(user_id=user.user_id, cat='auth')
+            print(server.sendmail(app.config['SMTP_USER'], user.email_addr, msg=f"""From: {app.config['SMTP_USER']}
+Subject: Account Verification
+
+{str(tkn)}"""))
+            print(tkn)
             return output_json(user.to_dict(), 200)
         return abort(400, status_code=400, message="Something went wrong")
 
@@ -124,5 +140,35 @@ class Logout(Resource):
 
 class ResetPassword(Resource):
     @staticmethod
-    def get():
-        return 200
+    def post():
+        args = recover_args.parse_args(strict=True)
+        email_addr = args['email']
+        user = Users.get_user(email=email_addr)
+        if user:
+            tkn = VerificationTokens.new(user_id=user.user_id, cat='rcvr')
+            print(server.sendmail(app.config['SMTP_USER'], user.email_addr, msg=f"""From: {app.config['SMTP_USER']}
+Subject: Reset Password
+
+{str(tkn)}"""))
+            print(tkn)
+            return 200
+        return 404
+
+
+class AuthUser(Resource):
+    @staticmethod
+    def post():
+        args = verification_args.parse_args()
+        print(args['token'])
+        tkn = VerificationTokens.get(args['token'])
+        if tkn.cat == 'auth' and not tkn.used:
+            user = Users.get_user(user_id=tkn.user_id)
+            if user:
+                if user.authenticate():
+                    tkn.consume()
+                    if login_user(user, remember=True):
+                        return output_json({'message': 'authentication successful'}, 200)
+                    return abort(500, message="Login failed")
+                return abort(500, message="Authentication Failed")
+        return abort(404, message="Invalid Request")
+

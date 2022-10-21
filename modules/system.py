@@ -1,8 +1,9 @@
-from flask_restful import Resource, reqparse, request, output_json, abort
 from flask_login import current_user
-from modules.auth import login_required
-from database import Systems
+from flask_restful import Resource, reqparse, output_json, abort
 from sqlalchemy.exc import SQLAlchemyError
+
+from database import Systems
+from modules.auth import login_required
 
 
 class System(Resource):

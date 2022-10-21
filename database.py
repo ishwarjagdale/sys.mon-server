@@ -56,6 +56,15 @@ class Users(db.Model):
             encoding='utf-8')
         ).hexdigest()
 
+    def authenticate(self):
+        try:
+            self.authenticated = True
+            db.session.commit()
+        except Exception as e:
+            print(e)
+            return False
+        return self.authenticated
+
     def to_dict(self):
         return {
             'user_id': self.user_id,
@@ -66,7 +75,11 @@ class Users(db.Model):
 
 def generate_sys_id(context):
     return hashlib.sha256(bytes(str(context.get_current_parameters()['user_id']) +
-                                str(context.get_current_parameters()['date_added']), encoding='utf-8')).hexdigest()
+                                str(datetime.now()), encoding='utf-8')).hexdigest()
+
+
+def gen_token():
+    return hashlib.sha256(bytes(str(datetime.now()), encoding='utf-8')).hexdigest()
 
 
 class Systems(db.Model):
@@ -102,3 +115,39 @@ class Systems(db.Model):
             "user_id": self.user_id,
             "ip_addr": self.ip_addr
         }
+
+
+class VerificationTokens(db.Model):
+    __table_name__ = "VerificationTokens"
+
+    token = db.Column(db.VARCHAR, primary_key=True)
+    user_id = db.Column(db.INTEGER, db.ForeignKey('users.user_id'), nullable=False)
+    # user = db.relationship("Users", backref='users', lazy=True)
+    date_generated = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    cat = db.Column(db.VARCHAR, nullable=False)
+    used = db.Column(db.BOOLEAN, default=False, nullable=False)
+
+    def to_dict(self):
+        return {
+            'token': self.token,
+            'user_id': self.user_id,
+            'date_generated': self.date_generated,
+            'cat': self.cat,
+            'used': self.used
+        }
+
+    @staticmethod
+    def get(tkn):
+        return VerificationTokens.query.filter_by(token=tkn).first()
+
+    @staticmethod
+    def new(user_id, cat):
+        tkn = VerificationTokens(token=gen_token(), user_id=user_id, cat=cat)
+        db.session.add(tkn)
+        db.session.commit()
+        return tkn.to_dict()
+
+    def consume(self):
+        self.used = True
+        db.session.commit()
+        return self.used

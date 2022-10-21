@@ -19,7 +19,7 @@ with app.app_context():
     try:
         if server.login(user=app.config.get("SMTP_USER"), password=app.config.get('SMTP_PASSWORD')) == 235:
             print('SMTP SERVER SET UP SUCCESSFUL')
-    except smtplib.SMTPAuthenticationError or TimeoutError as e:
+    except smtplib.SMTPAuthenticationError or TimeoutError or Exception as e:
         print('SMTP SERVER SET UP FAILED :: ', e)
     login_manager.init_app(app)
     db.init_app(app)

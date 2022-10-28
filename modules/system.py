@@ -17,6 +17,7 @@ class System(Resource):
 
     patch_sys = reqparse.RequestParser()
     patch_sys.add_argument('v_token', type=str, required=True, help="missing verification token")
+    patch_sys.add_argument('port', type=int, required=True, help="missing port number")
 
     # @staticmethod
     # def get_user():

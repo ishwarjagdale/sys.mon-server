@@ -45,14 +45,12 @@ class System(Resource):
     def patch():
         # print(request.__dict__)
         print(System.patch_sys.parse_args()['v_token'])
-        sys_id, v_token = System.patch_sys.parse_args()['v_token'].split("|")
+        args = System.patch_sys.parse_args()
+        sys_id, v_token = args['v_token'].split("|")
+        port = args['port']
+
         system = Systems.get_system(sys_id=sys_id, v_token=v_token)
-        print(request.__dict__)
-        # addr = request.environ['werkzeug.socket'].getpeername()
-        # print(addr)
-        # system.ip_addr = f"{socket.gethostbyname(socket.gethostbyaddr(addr[0])[0])}:{addr[1]}"
-        # print(system.ip_addr)
-        # db.session.commit()
-        return output_json({
-            'host': str(request.__dict__)
-        }, 200)
+        system.ip_addr = f"{request.remote_addr}:{port}"
+        print(system.ip_addr)
+        db.session.commit()
+        return 200

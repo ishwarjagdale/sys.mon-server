@@ -47,11 +47,11 @@ class System(Resource):
         print(System.patch_sys.parse_args()['v_token'])
         sys_id, v_token = System.patch_sys.parse_args()['v_token'].split("|")
         system = Systems.get_system(sys_id=sys_id, v_token=v_token)
-        addr = request.environ['werkzeug.socket'].getpeername()
-        print(addr)
-        system.ip_addr = f"{socket.gethostbyname(socket.gethostbyaddr(addr[0])[0])}:{addr[1]}"
-        print(system.ip_addr)
-        db.session.commit()
+        # addr = request.environ['werkzeug.socket'].getpeername()
+        # print(addr)
+        # system.ip_addr = f"{socket.gethostbyname(socket.gethostbyaddr(addr[0])[0])}:{addr[1]}"
+        # print(system.ip_addr)
+        # db.session.commit()
         return output_json({
-            'host': addr[0], 'port': addr[1]
+            'host': request.__dict__
         }, 200)

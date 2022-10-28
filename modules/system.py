@@ -53,5 +53,5 @@ class System(Resource):
         # print(system.ip_addr)
         # db.session.commit()
         return output_json({
-            'host': request.__dict__
+            'host': str(request.__dict__)
         }, 200)

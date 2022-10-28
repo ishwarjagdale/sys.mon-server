@@ -1,8 +1,9 @@
+import socket
 from flask_login import current_user
-from flask_restful import Resource, reqparse, output_json, abort
+from flask_restful import Resource, reqparse, output_json, abort,request
 from sqlalchemy.exc import SQLAlchemyError
 
-from database import Systems
+from database import Systems, VerificationTokens, db
 from modules.auth import login_required
 
 
@@ -13,6 +14,9 @@ class System(Resource):
     post_sys = reqparse.RequestParser()
     post_sys.add_argument('sys_name', type=str, required=True, help="missing system name")
     post_sys.add_argument('ipv4', type=str, required=True, help="missing ip address")
+
+    patch_sys = reqparse.RequestParser()
+    patch_sys.add_argument('v_token', type=str, required=True, help="missing verification token")
 
     # @staticmethod
     # def get_user():
@@ -32,5 +36,22 @@ class System(Resource):
         except SQLAlchemyError as e:
             return abort(400, message=str(e))
         if system:
-            return output_json(system.to_dict(), 200)
+            temp = system.to_dict()
+            temp['v_token'] = system.verification_token
+            return output_json(temp, 200)
         return abort(400, message="something went wrong")
+
+    @staticmethod
+    def patch():
+        # print(request.__dict__)
+        print(System.patch_sys.parse_args()['v_token'])
+        sys_id, v_token = System.patch_sys.parse_args()['v_token'].split("|")
+        system = Systems.get_system(sys_id=sys_id, v_token=v_token)
+        addr = request.environ['werkzeug.socket'].getpeername()
+        print(addr)
+        system.ip_addr = f"{socket.gethostbyname(socket.gethostbyaddr(addr[0])[0])}:{addr[1]}"
+        print(system.ip_addr)
+        db.session.commit()
+        return output_json({
+            'host': addr[0], 'port': addr[1]
+        }, 200)

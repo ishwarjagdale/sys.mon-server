@@ -91,10 +91,14 @@ class Systems(db.Model):
     user_id = db.Column(db.INTEGER, db.ForeignKey('users.user_id'), nullable=False)
     user = db.relationship("Users", backref='users', lazy=True)
     ip_addr = db.Column(db.VARCHAR)
+    verification_token = db.Column(db.VARCHAR, default=gen_token, nullable=False)
 
     @staticmethod
-    def get_system(sys_id, user_id):
-        return Systems.query.filter_by(sys_id=sys_id, user_id=user_id).first()
+    def get_system(sys_id, user_id=None, v_token=None):
+        if user_id:
+            return Systems.query.filter_by(sys_id=sys_id, user_id=user_id).first()
+        return Systems.query.filter_by(sys_id=sys_id, verification_token=v_token).first()
+
 
     @staticmethod
     def add_system(name, ip, user_id):

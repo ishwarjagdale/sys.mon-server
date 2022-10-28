@@ -48,10 +48,10 @@ class System(Resource):
         print(System.patch_sys.parse_args()['v_token'])
         args = System.patch_sys.parse_args()
         sys_id, v_token = args['v_token'].split("|")
+        addr = request.environ['HTTP_X_FORWARDED_FOR'] if 'HTTP_X_FORWARDED_FOR' in request.environ else request.environ['REMOTE_ADDR']
         port = args['port']
-
         system = Systems.get_system(sys_id=sys_id, v_token=v_token)
         system.ip_addr = f"{request.remote_addr}:{port}"
-        print(system.ip_addr)
+        print(addr, port)
         db.session.commit()
         return 200

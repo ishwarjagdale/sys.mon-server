@@ -51,7 +51,7 @@ class System(Resource):
         addr = request.environ['HTTP_X_FORWARDED_FOR'] if 'HTTP_X_FORWARDED_FOR' in request.environ else request.environ['REMOTE_ADDR']
         port = args['port']
         system = Systems.get_system(sys_id=sys_id, v_token=v_token)
-        system.ip_addr = f"{request.remote_addr}:{port}"
+        system.ip_addr = f"{addr}:{port}"
         print(addr, port)
         db.session.commit()
         return 200

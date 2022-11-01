@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_restful import Resource, reqparse, abort, output_json, current_app as app
-from modules.email import server
+from modules.email import send_mail
 from database import Users, db, VerificationTokens
 
 login_args = reqparse.RequestParser(bundle_errors=True)
@@ -19,7 +19,9 @@ verification_args = reqparse.RequestParser(bundle_errors=True)
 verification_args.add_argument('token', type=str, required=True, help='missing token')
 
 recover_args = reqparse.RequestParser(bundle_errors=True)
-recover_args.add_argument('email', type=str, required=True, help='missing email')
+recover_args.add_argument('email', type=str, required=False, help='missing email')
+recover_args.add_argument('token', type=str, required=False, help='missing token')
+recover_args.add_argument('password', type=str, required=False, help="missing password")
 
 login_manager = LoginManager()
 
@@ -106,9 +108,7 @@ class Register(Resource):
             return abort(409, message="user exists")
         d_now = datetime.now()
         user = Users(name=name, email_addr=email,
-                     password=hashlib.sha256(
-                         bytes(str(d_now.timestamp()).replace(".", password), encoding='utf-8')
-                     ).hexdigest(),
+                     password=hashlib.sha256(bytes(str(d_now.timestamp()).replace(".", password), encoding='utf-8')).hexdigest(),
                      date_created=d_now)
         db.session.add(user)
         db.session.commit()
@@ -118,7 +118,7 @@ class Register(Resource):
             # return Login.generate_session(user)
             # login_user(user, remember=True)
             tkn = VerificationTokens.new(user_id=user.user_id, cat='auth')
-            print(server.sendmail(app.config['SMTP_USER'], user.email_addr, msg=f"""From: {app.config['SMTP_USER']}
+            print(send_mail(user.email_addr, f"""From: {app.config['SMTP_USER']}
 Subject: Account Verification
 
 {str(tkn)}"""))
@@ -142,17 +142,40 @@ class ResetPassword(Resource):
     @staticmethod
     def post():
         args = recover_args.parse_args(strict=True)
-        email_addr = args['email']
-        user = Users.get_user(email=email_addr)
-        if user:
-            tkn = VerificationTokens.new(user_id=user.user_id, cat='rcvr')
-            print(server.sendmail(app.config['SMTP_USER'], user.email_addr, msg=f"""From: {app.config['SMTP_USER']}
+        print(args)
+        if args['token']:
+            tkn = VerificationTokens.get(args['token'])
+            if tkn:
+                if not tkn.used and tkn.cat == 'rcvr':
+                    user = Users.get_user(user_id=tkn.user_id)
+                    if user:
+                        user.password = hashlib.sha256(bytes(str(user.date_created.timestamp()).
+                                                             replace(".", args['password']), encoding='utf-8')).\
+                            hexdigest()
+                        db.session.commit()
+                        tkn.consume()
+                        print(send_mail(user.email_addr, f"""From: {app.config['SMTP_USER']}
+Subject: Password Changed!
+
+Your sys.mon account password has been changed, if not done by you please reply to this email.
+Token: {tkn.token}
+"""))
+                        return 200
+
+            return abort(400, message='unauthorized request')
+
+        else:
+            email_addr = args['email']
+            user = Users.get_user(email=email_addr)
+            if user:
+                tkn = VerificationTokens.new(user_id=user.user_id, cat='rcvr')
+                print(send_mail(user.email_addr, f"""From: {app.config['SMTP_USER']}
 Subject: Reset Password
 
-{str(tkn)}"""))
-            print(tkn)
-            return 200
-        return 404
+https://sysmon.pages.dev/forgot-password/{str(tkn['token'])}"""))
+                print(tkn)
+                return 200
+            return abort(404, message='user not found')
 
 
 class AuthUser(Resource):

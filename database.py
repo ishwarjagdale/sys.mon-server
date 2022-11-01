@@ -154,4 +154,5 @@ class VerificationTokens(db.Model):
     def consume(self):
         self.used = True
         db.session.commit()
+        print("Token consumed:", self.token)
         return self.used

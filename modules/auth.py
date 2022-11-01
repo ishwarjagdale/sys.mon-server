@@ -174,7 +174,7 @@ Token: {tkn.token}
                 print(send_mail(user.email_addr, f"""From: {app.config['SMTP_USER']}
 Subject: Reset Password
 
-https://sysmon.pages.dev/forgot-password/{str(tkn['token'])}"""))
+https://sys-mon.pages.dev/forgot-password/{str(tkn['token'])}"""))
                 print(tkn)
                 return 200
             return abort(404, message='user not found')

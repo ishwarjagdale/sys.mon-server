@@ -160,6 +160,8 @@ Subject: Password Changed!
 Your sys.mon account password has been changed, if not done by you please reply to this email.
 Token: {tkn.token}
 """))
+                        if login_user(user):
+                            return output_json(user.to_dict(), 200)
                         return 200
 
             return abort(400, message='unauthorized request')

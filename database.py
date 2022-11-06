@@ -12,7 +12,7 @@ class Users(db.Model):
     user_id = db.Column(db.INTEGER, primary_key=True)
     email_addr = db.Column(db.VARCHAR, unique=True, nullable=False)
     password = db.Column(db.VARCHAR, nullable=False)
-    name = db.Column(db.VARCHAR, default="unnamed", nullable=False)
+    name = db.Column(db.VARCHAR, default="anonymous", nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.now(), nullable=False)
     authenticated = db.Column(db.BOOLEAN, default=False, nullable=False)
 
@@ -92,6 +92,8 @@ class Systems(db.Model):
     user = db.relationship("Users", backref='users', lazy=True)
     ip_addr = db.Column(db.VARCHAR)
     verification_token = db.Column(db.VARCHAR, default=gen_token, nullable=False)
+    enable_mon = db.Column(db.BOOLEAN, default=True, nullable=False)
+    os = db.Column(db.VARCHAR, nullable=False)
 
     @staticmethod
     def get_system(sys_id, user_id=None, v_token=None):
@@ -101,8 +103,8 @@ class Systems(db.Model):
 
 
     @staticmethod
-    def add_system(name, ip, user_id):
-        system = Systems(name=name, user_id=user_id, ip_addr=ip)
+    def add_system(name, ip, user_id, os):
+        system = Systems(name=name, user_id=user_id, ip_addr=ip, os=os)
         db.session.add(system)
         db.session.commit()
 
@@ -117,7 +119,8 @@ class Systems(db.Model):
             "sys_id": self.sys_id,
             "name": self.name,
             "user_id": self.user_id,
-            "ip_addr": self.ip_addr
+            "ip_addr": self.ip_addr,
+            "os": self.os
         }
 
 
@@ -156,3 +159,23 @@ class VerificationTokens(db.Model):
         db.session.commit()
         print("Token consumed:", self.token)
         return self.used
+
+
+class Rules(db.Model):
+    __table_name__ = "Rules"
+    system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id'))
+    resource = db.Column(db.VARCHAR, primary_key=True)
+    max_limit = db.Column(db.INTEGER, nullable=False)
+    percent = db.Column(db.BOOLEAN, default=True, nullable=False)
+
+
+class ActivityLogs(db.Model):
+    __table_name__ = "ActivityLogs"
+    system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id'))
+    activity_id = db.Column(db.INTEGER, primary_key=True)
+    date_happened = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    type = db.Column(db.VARCHAR, nullable=False)
+    description = db.Column(db.VARCHAR, nullable=False)
+    read = db.Column(db.BOOLEAN, default=False, nullable=False)
+    priority = db.Column(db.INTEGER, default=1, nullable=False)
+    message = db.Column(db.VARCHAR, nullable=False)

@@ -7,7 +7,7 @@ from flask_restful import Api, Resource
 from database import db
 from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager
 from modules.system import System
-from modules.email import server
+from modules.email import create_connection
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -16,7 +16,7 @@ cors = CORS(app, supports_credentials=True)
 
 with app.app_context():
     print(app.config.get("SMTP_USER"), app.config.get('SMTP_PASSWORD'))
-
+    create_connection()
     login_manager.init_app(app)
     db.init_app(app)
     db.create_all()

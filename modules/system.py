@@ -14,6 +14,7 @@ class System(Resource):
     post_sys = reqparse.RequestParser()
     post_sys.add_argument('sys_name', type=str, required=True, help="missing system name")
     post_sys.add_argument('ipv4', type=str, required=True, help="missing ip address")
+    post_sys.add_argument('os', type=str, required=True, help="missing os")
 
     patch_sys = reqparse.RequestParser()
     patch_sys.add_argument('v_token', type=str, required=True, help="missing verification token")
@@ -33,7 +34,8 @@ class System(Resource):
     def post(self):
         args = System.post_sys.parse_args()
         try:
-            system = Systems.add_system(args['sys_name'], args['ipv4'], current_user.user_id)
+            system = Systems.add_system(name=args['sys_name'], ip=args['ipv4'], os=args['os'],
+                                        user_id=current_user.user_id)
         except SQLAlchemyError as e:
             return abort(400, message=str(e))
         if system:

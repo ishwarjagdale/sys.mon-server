@@ -119,7 +119,8 @@ class Systems(db.Model):
             "name": self.name,
             "user_id": self.user_id,
             "ip_addr": self.ip_addr,
-            "os": self.os
+            "os": self.os,
+            "enable_mon": self.enable_mon
         }
 
 

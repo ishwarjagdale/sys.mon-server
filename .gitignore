@@ -1,2 +1,4 @@
 /venv/
 /flask_session/
+.idea
+*.pyc

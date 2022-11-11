@@ -15,6 +15,9 @@ register_args.add_argument('name', type=str, required=True, help="missing name")
 register_args.add_argument('email', type=str, required=True, help="missing email")
 register_args.add_argument('password', type=str, required=True, help="missing password")
 
+get_verification_args = reqparse.RequestParser(bundle_errors=True)
+get_verification_args.add_argument('email', type=str, required=True, help='missing email')
+
 verification_args = reqparse.RequestParser(bundle_errors=True)
 verification_args.add_argument('token', type=str, required=True, help='missing token')
 
@@ -108,7 +111,8 @@ class Register(Resource):
             return abort(409, message="user exists")
         d_now = datetime.now()
         user = Users(name=name, email_addr=email,
-                     password=hashlib.sha256(bytes(str(d_now.timestamp()).replace(".", password), encoding='utf-8')).hexdigest(),
+                     password=hashlib.sha256(
+                         bytes(str(d_now.timestamp()).replace(".", password), encoding='utf-8')).hexdigest(),
                      date_created=d_now)
         db.session.add(user)
         db.session.commit()
@@ -118,11 +122,8 @@ class Register(Resource):
             # return Login.generate_session(user)
             # login_user(user, remember=True)
             tkn = VerificationTokens.new(user_id=user.user_id, cat='auth')
-            print(send_mail(user.email_addr, f"""From: {app.config['SMTP_USER']}
-Subject: Account Verification
-
-{str(tkn)}"""))
             print(tkn)
+            send_mail(user.email_addr, "Account Verification", str(tkn))
             return output_json(user.to_dict(), 200)
         return abort(400, status_code=400, message="Something went wrong")
 
@@ -150,16 +151,13 @@ class ResetPassword(Resource):
                     user = Users.get_user(user_id=tkn.user_id)
                     if user:
                         user.password = hashlib.sha256(bytes(str(user.date_created.timestamp()).
-                                                             replace(".", args['password']), encoding='utf-8')).\
+                                                             replace(".", args['password']), encoding='utf-8')). \
                             hexdigest()
                         db.session.commit()
                         tkn.consume()
-                        print(send_mail(user.email_addr, f"""From: {app.config['SMTP_USER']}
-Subject: Password Changed!
-
-Your sys.mon account password has been changed, if not done by you please reply to this email.
-Token: {tkn.token}
-"""))
+                        send_mail(user.email_addr, "Password Changed!",
+                                  f"Your sys.mon account password has been changed, if not done by you please "
+                                  f"reply to this email.\nToken: {tkn.token}")
                         if login_user(user):
                             return output_json(user.to_dict(), 200)
                         return 200
@@ -171,16 +169,28 @@ Token: {tkn.token}
             user = Users.get_user(email=email_addr)
             if user:
                 tkn = VerificationTokens.new(user_id=user.user_id, cat='rcvr')
-                print(send_mail(user.email_addr, f"""From: {app.config['SMTP_USER']}
-Subject: Reset Password
-
-https://sys-mon.pages.dev/forgot-password/{str(tkn['token'])}"""))
+                send_mail(user.email_addr, "Reset Password",
+                          f"https://sys-mon.pages.dev/forgot-password/{str(tkn['token'])}")
                 print(tkn)
                 return 200
             return abort(404, message='user not found')
 
 
 class AuthUser(Resource):
+
+    @staticmethod
+    def get():
+        args = get_verification_args.parse_args()
+        user = Users.get_user(email=args['email'])
+        if user:
+            if not user.authenticated:
+                tkn = VerificationTokens.new(user.user_id, cat="auth")
+                send_mail(user.email_addr, "Account Verification", str(tkn))
+                print(tkn)
+                return 200
+            return abort(400, message="user already authenticated")
+        return abort(404, message="user not found")
+
     @staticmethod
     def post():
         args = verification_args.parse_args()
@@ -196,4 +206,3 @@ class AuthUser(Resource):
                     return abort(500, message="Login failed")
                 return abort(500, message="Authentication Failed")
         return abort(404, message="Invalid Request")
-

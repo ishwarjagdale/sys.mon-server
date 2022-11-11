@@ -101,10 +101,9 @@ class Systems(db.Model):
             return Systems.query.filter_by(sys_id=sys_id, user_id=user_id).first()
         return Systems.query.filter_by(sys_id=sys_id, verification_token=v_token).first()
 
-
     @staticmethod
-    def add_system(name, ip, user_id, os):
-        system = Systems(name=name, user_id=user_id, ip_addr=ip, os=os)
+    def add_system(name, user_id, os):
+        system = Systems(name=name, user_id=user_id, os=os)
         db.session.add(system)
         db.session.commit()
 

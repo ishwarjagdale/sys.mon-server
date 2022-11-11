@@ -1,13 +1,10 @@
-import smtplib
-
 from flask import Flask
 from flask_cors import CORS
 from flask_restful import Api, Resource
 
-from database import db
+from database import db, Systems
 from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager
 from modules.system import System
-from modules.email import create_connection
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -15,11 +12,11 @@ api = Api(app)
 cors = CORS(app, supports_credentials=True)
 
 with app.app_context():
-    print(app.config.get("SMTP_USER"), app.config.get('SMTP_PASSWORD'))
-    create_connection()
     login_manager.init_app(app)
     db.init_app(app)
     db.create_all()
+
+    # s_queue = Systems.query.filter(enable_mon=True, Systems.ip_addr.not_(None)).all()
 
 
 class HelloWorld(Resource):
@@ -42,7 +39,7 @@ api.add_resource(System, '/api/system')
 
 if __name__ == "__main__":
     try:
-        app.run('localhost', port=5000, debug=True)
+        app.run('0.0.0.0', port=5000, debug=True)
     except Exception as e:
         print(e)
         db.session.rollback()

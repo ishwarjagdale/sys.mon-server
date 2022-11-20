@@ -179,3 +179,19 @@ class ActivityLogs(db.Model):
     read = db.Column(db.BOOLEAN, default=False, nullable=False)
     priority = db.Column(db.INTEGER, default=1, nullable=False)
     message = db.Column(db.VARCHAR, nullable=False)
+
+    @staticmethod
+    def new(sys_id, act_type, desc, message):
+        act = ActivityLogs(system_id=sys_id, type=act_type, description=desc, message=message)
+        db.session.add(act)
+        db.session.commit()
+
+    def to_dict(self):
+        return {
+            "system_id": self.system_id,
+            "date_happened": self.date_happened,
+            "activity_id": self.activity_id,
+            "type": self.type,
+            "description": self.description,
+            "message": self.message
+        }

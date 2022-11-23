@@ -1,99 +1,84 @@
+import os
 import time
-from modules.email import send_mail
+from concurrent.futures import ThreadPoolExecutor
+
 from flask import current_app
 from flask_login import current_user
 from flask_restful import Resource, reqparse, output_json, abort, request
 from sqlalchemy.exc import SQLAlchemyError
 from websocket import WebSocketApp
-from threading import Thread
+
 from database import Systems, ActivityLogs, db
 from modules.auth import login_required
+from modules.email import send_mail
 
-conns = dict()
+connection_pool = dict()
+exe = ThreadPoolExecutor()
 
 
 class Sock:
-    def __init__(self, system=None):
-        self.re_conn = False
+    def __init__(self):
         self.app = None
-        self.system = system
-        self.ws = None
-        self.conn()
-
-    def conn(self, system=None):
-        if system:
-            self.system = system
-        if self.system:
-            self.ws = WebSocketApp(f"wss://{self.system.ip_addr}",
-                                   on_open=self.on_open,
-                                   on_close=self.on_close if not self.re_conn else self.alert_user,
-                                   on_error=lambda wes, err: print(wes, err), keep_running=True)
-
-    def run(self, **kwargs):
-        if 'app' in kwargs:
-            self.app = kwargs['app']
-        self.ws.run_forever()
-
-    def on_open(self, ws):
         self.re_conn = False
+        self.system = None
+        self.ws = None
+
+    def run(self, system=None, app=None):
+        self.system = system if system else self.system
+        self.app = app if app else self.app
+
+        if self.system and app:
+            with app.app_context():
+                self.ws = WebSocketApp(f"ws://{self.system.ip_addr}",
+                                       on_open=self.on_open,
+                                       on_close=self.on_close if not self.re_conn else self.alert_user,
+                                       on_error=self.on_error,
+                                       keep_running=True)
+                self.ws.run_forever()
+
+    def on_open(self, *args):
         print(f'[ WEBSOCK < {self.system.ip_addr} >: OPEN ]', self.system.name)
-        conns[f"{self.system.sys_id}"] = self
+        self.re_conn = False
 
-    def on_close(self, ws, close_status_code, close_msg):
-        print(f'[ WEBSOCK < {self.system.ip_addr} >: CLOSED ]', self.system.name, "reconnecting after 10 sec...")
+    def on_close(self, *args):
+        print(f'[ WEBSOCK < {self.system.ip_addr} >: RECONNECTING ]', self.system.name)
         time.sleep(10)
-        with self.app.app_context():
-            query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
-                .order_by(db.desc(ActivityLogs.date_happened)).first()
 
-            if query and query.type in ["SHUTDOWN", "DOWN"]:
-                if self.system.sys_id in conns:
-                    conns.pop(self.system.sys_id)
-            else:
-                system = Systems.get_system(sys_id=self.system.sys_id, v_token=self.system.verification_token)
-                if system and system.enable_mon:
-                    self.re_conn = True
-                    self.conn(system)
-                    self.run()
+        query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
+            .order_by(db.desc(ActivityLogs.date_happened)).first()
 
-    def on_error(self):
-        pass
+        if query and query.type in ["SHUTDOWN", "DOWN"]:
+            self.destruct()
+        else:
+            system = Systems.get_system(sys_id=self.system.sys_id, v_token=self.system.verification_token)
+            if system and system.enable_mon:
+                self.re_conn = True
+                self.run(system)
+
+    def on_error(self, *args):
+        print(f'[ WEBSOCK < {self.system.ip_addr} >: ERROR ]', self.system.name)
 
     def alert_user(self, ws, close_status_code, close_msg):
-        with self.app.app_context():
-            query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
-                .order_by(db.desc(ActivityLogs.date_happened)).first()
-            if query and query.type not in ["SHUTDOWN", "DOWN"]:
-                ActivityLogs.new(self.system.sys_id, "DOWN",
-                                 "can't connect to the system, reason unknown", "system unreachable")
-            send_mail(to=self.system.user.email_addr, subject='SYSTEM DOWN!', message=f"""
-            {close_status_code}: {close_msg}
-            """)
-            conns.pop(self.system.sys_id)
-            print("need attention", self.system.name)
+        if os.environ["FLASK_ENV"] == "development":
+            print(f"SYSTEM DOWN | {self.system.name} | {close_status_code} | {close_msg}")
+            return True
+        query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
+            .order_by(db.desc(ActivityLogs.date_happened)).first()
+        if query and query.type not in ["SHUTDOWN", "DOWN"]:
+            ActivityLogs.new(self.system.sys_id, "DOWN",
+                             "can't connect to the system, reason unknown", "system unreachable")
+        send_mail(to=self.system.user.email_addr, subject='SYSTEM DOWN!', message=f"""
+        {close_status_code}: {close_msg}
+        """)
 
+        self.destruct()
 
-# async def connect(system, recur=True):
-#     try:
-#         ws = Sock(system)
-#         Thread(target=ws.run).start()
-#         print('hi')
-#         app.config['conns'][system.sys_id] = ws
-#     except ConnectionError or ConnectionRefusedError or Exception as e:
-#         print(e)
-#         if recur:
-#             print('sleeping for 10 sec')
-#             time.sleep(10)
-#             system = Systems.query.filter(Systems.sys_id == system.sys_id).first()
-#             await connect(system, recur=False)
-#         else:
-#             print("I'm gonna tell ur owner 😑")
-#
-#             print(ActivityLogs.query.filter(ActivityLogs.system_id == system.sys_id).order_by(
-#                 db.desc(ActivityLogs.date_happened)).first())
-#             # send_mail(to=Users.query.filter(Users.user_id == system.user_id).first().email_addr,
-#             #           subject="system down!",
-#             #           message=f"Following System have gone boom boom\n{json.dumps(system.to_dict(), indent=4)}")
+    def destruct(self):
+        try:
+            self.ws.close()
+        except Exception as e:
+            print(e)
+        connection_pool.pop(self.system.sys_id)
 
 
 class System(Resource):
@@ -109,9 +94,9 @@ class System(Resource):
     patch_sys.add_argument('sys_id', type=str, required=True, help="missing sys_id")
     patch_sys.add_argument('port', type=int, required=True, help="missing port number")
 
-    # @staticmethod
-    # def get_user():
-    #     return session.get(request.cookies.get('token'))
+    put_sys = reqparse.RequestParser()
+    put_sys.add_argument('sys_id', type=str, required=True, help="missing system id")
+    put_sys.add_argument('payload', type=dict, required=True, help="missing update values")
 
     @login_required
     def get(self):
@@ -139,9 +124,24 @@ class System(Resource):
             return output_json(temp, 200)
         return abort(400, message="something went wrong")
 
-    @staticmethod
-    def patch():
-        args = System.patch_sys.parse_args()
+    @login_required
+    def put(self):
+        args = self.put_sys.parse_args()
+        system = Systems.get_system(args['sys_id'], user_id=current_user.user_id)
+        if system:
+            payload = args['payload']
+            if 'enable_mon' in payload:
+                system.enable_mon = bool(payload['enable_mon'])
+            if 'alert' in payload:
+                system.alert = bool(payload['alert'])
+            if 'name' in payload:
+                system.name = payload['name']
+            db.session.commit()
+            return output_json(system.to_dict(), 200)
+        return 404
+
+    def patch(self):
+        args = self.patch_sys.parse_args()
         print(args)
         sys_id, v_token = args['sys_id'], args['v_token']
         addr = request.environ['HTTP_X_FORWARDED_FOR'] if 'HTTP_X_FORWARDED_FOR' in request.environ else \
@@ -153,7 +153,18 @@ class System(Resource):
         db.session.commit()
         ActivityLogs.new(system.sys_id, "PATCH", "mon's ip address changed", "mon restarted!")
 
-        if system.sys_id not in conns:
-            Thread(target=Sock(system).run, kwargs={'app': current_app._get_current_object()}).start()
+        if system.sys_id not in connection_pool:
+            exe.submit(Sock().run, system, current_app._get_current_object())
 
         return 200
+
+    @login_required
+    def delete(self):
+        if 'id' in request.args:
+            system = Systems.get_system(sys_id=request.args['id'], user_id=current_user.user_id)
+            if system:
+                db.session.delete(system)
+                db.session.commit()
+                return 200
+            return 404
+        return 400

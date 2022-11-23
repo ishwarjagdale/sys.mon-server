@@ -1,12 +1,13 @@
 from threading import Thread
 
+from flask import Flask, current_app
 from flask_cors import CORS
 from flask_restful import Api, Resource
-from flask import Flask, current_app
+
 from database import db, Systems
-from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager
-from modules.system import System, Sock
 from modules.activity import Activity
+from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager
+from modules.system import System, Sock, exe
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -18,7 +19,7 @@ def start_binding():
     with app.app_context():
         s_queue = Systems.query.filter(Systems.enable_mon == 'true', Systems.ip_addr != 'null').all()
         for s in s_queue:
-            Thread(target=Sock(s).run, kwargs={'app': current_app._get_current_object()}, name=s.sys_id).start()
+            exe.submit(Sock().run, s, current_app._get_current_object())
 
 
 with app.app_context():

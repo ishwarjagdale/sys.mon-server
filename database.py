@@ -89,11 +89,11 @@ class Systems(db.Model):
     name = db.Column(db.VARCHAR(200), default=generate_sys_id, nullable=False)
     date_added = db.Column(db.DateTime, default=datetime.now(), nullable=False)
     user_id = db.Column(db.INTEGER, db.ForeignKey('users.user_id'), nullable=False)
-    user = db.relationship("Users", backref='users', lazy=True)
     ip_addr = db.Column(db.VARCHAR)
     verification_token = db.Column(db.VARCHAR, default=gen_token, nullable=False)
     enable_mon = db.Column(db.BOOLEAN, default=True, nullable=False)
     os = db.Column(db.VARCHAR, nullable=False)
+    alert = db.Column(db.BOOLEAN, default=True, nullable=False)
 
     @staticmethod
     def get_system(sys_id, user_id=None, v_token=None):
@@ -120,7 +120,8 @@ class Systems(db.Model):
             "user_id": self.user_id,
             "ip_addr": self.ip_addr,
             "os": self.os,
-            "enable_mon": self.enable_mon
+            "enable_mon": self.enable_mon,
+            'alert': self.alert
         }
 
 
@@ -128,8 +129,7 @@ class VerificationTokens(db.Model):
     __table_name__ = "VerificationTokens"
 
     token = db.Column(db.VARCHAR, primary_key=True)
-    user_id = db.Column(db.INTEGER, db.ForeignKey('users.user_id'), nullable=False)
-    # user = db.relationship("Users", backref='users', lazy=True)
+    user_id = db.Column(db.INTEGER, db.ForeignKey('users.user_id', ondelete="CASCADE"), nullable=False)
     date_generated = db.Column(db.DateTime, nullable=False, default=datetime.now())
     cat = db.Column(db.VARCHAR, nullable=False)
     used = db.Column(db.BOOLEAN, default=False, nullable=False)
@@ -163,7 +163,7 @@ class VerificationTokens(db.Model):
 
 class Rules(db.Model):
     __table_name__ = "Rules"
-    system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id'))
+    system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id', ondelete="CASCADE"))
     resource = db.Column(db.VARCHAR, primary_key=True)
     max_limit = db.Column(db.INTEGER, nullable=False)
     percent = db.Column(db.BOOLEAN, default=True, nullable=False)
@@ -171,7 +171,7 @@ class Rules(db.Model):
 
 class ActivityLogs(db.Model):
     __table_name__ = "ActivityLogs"
-    system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id'))
+    system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id', ondelete='CASCADE'))
     activity_id = db.Column(db.INTEGER, primary_key=True)
     date_happened = db.Column(db.DateTime, nullable=False, default=datetime.now())
     type = db.Column(db.VARCHAR, nullable=False)

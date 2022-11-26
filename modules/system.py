@@ -10,7 +10,7 @@ from websocket import WebSocketApp
 
 from database import Systems, ActivityLogs, db
 from modules.auth import login_required
-from modules.email import send_mail
+from modules.smtp_email import send_mail
 
 connection_pool = dict()
 exe = ThreadPoolExecutor()
@@ -27,11 +27,11 @@ class Sock:
         self.system = system if system else self.system
         self.app = app if app else self.app
 
-        if self.system and app:
-            with app.app_context():
+        if self.system and self.app:
+            with self.app.app_context():
                 self.ws = WebSocketApp(f"ws://{self.system.ip_addr}",
                                        on_open=self.on_open,
-                                       on_close=self.on_close if not self.re_conn else self.alert_user,
+                                       on_close=self.alert_user if self.re_conn else self.on_close,
                                        on_error=self.on_error,
                                        keep_running=True)
                 self.ws.run_forever()
@@ -43,11 +43,10 @@ class Sock:
     def on_close(self, *args):
         print(f'[ WEBSOCK < {self.system.ip_addr} >: RECONNECTING ]', self.system.name)
         time.sleep(10)
-
         query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
             .order_by(db.desc(ActivityLogs.date_happened)).first()
-
         if query and query.type in ["SHUTDOWN", "DOWN"]:
+            print(f'[ WEBSOCK < {self.system.ip_addr} >: DESTRUCT ]', self.system.name)
             self.destruct()
         else:
             system = Systems.get_system(sys_id=self.system.sys_id, v_token=self.system.verification_token)

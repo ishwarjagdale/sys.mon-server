@@ -2,29 +2,10 @@ import hashlib
 from datetime import datetime
 
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from flask_restful import Resource, reqparse, abort, output_json, current_app as app
-from modules.email import send_mail
+from flask_restful import Resource, reqparse, abort, output_json
+from modules.smtp_email import send_mail
 from database import Users, db, VerificationTokens
 
-login_args = reqparse.RequestParser(bundle_errors=True)
-login_args.add_argument('email', type=str, required=True, help="missing email")
-login_args.add_argument('password', type=str, required=True, help="missing password")
-
-register_args = reqparse.RequestParser(bundle_errors=True)
-register_args.add_argument('name', type=str, required=True, help="missing name")
-register_args.add_argument('email', type=str, required=True, help="missing email")
-register_args.add_argument('password', type=str, required=True, help="missing password")
-
-get_verification_args = reqparse.RequestParser(bundle_errors=True)
-get_verification_args.add_argument('email', type=str, required=True, help='missing email')
-
-verification_args = reqparse.RequestParser(bundle_errors=True)
-verification_args.add_argument('token', type=str, required=True, help='missing token')
-
-recover_args = reqparse.RequestParser(bundle_errors=True)
-recover_args.add_argument('email', type=str, required=False, help='missing email')
-recover_args.add_argument('token', type=str, required=False, help='missing token')
-recover_args.add_argument('password', type=str, required=False, help="missing password")
 
 login_manager = LoginManager()
 
@@ -34,52 +15,17 @@ def load_user(user_id):
     return Users.get_user(user_id=user_id)
 
 
-#
-# class Authorized:
-#     def __init__(self):
-#         self.session = dict()
-
-
-# def login_required(func):
-#     @wraps(func)
-#     def wrapper(*args, **kwargs):
-#         token = request.cookies.get('token')
-#         print("Found token", token, end=' ')
-#         if token:
-#             curr = session[token]
-#             print(curr)
-#             if curr and datetime.now(tz=timezone.utc) < curr['expires']:
-#                 return func(*args, **kwargs)
-#
-#         abort(401, message="Unauthorized Access")
-#
-#     return wrapper
-
-
 class Login(Resource):
+    login_args = reqparse.RequestParser(bundle_errors=True)
+    login_args.add_argument('email', type=str, required=True, help="missing email")
+    login_args.add_argument('password', type=str, required=True, help="missing password")
 
     @login_required
     def get(self):
-        # user_session = session[request.cookies.get('token')]
-        # print("Log in check :", user_session)
-        # if user_session:
-        #     user = Users.get_user(user_id=user_session['user_id'])
-        #     return output_json(user.to_dict(), 200)
-        # return abort(401, message="Unauthorized Access")
         return output_json(current_user.to_dict(), 200)
 
-    # @staticmethod
-    # def generate_session(user):
-    #     res = output_json(user.to_dict(), 200)
-    #     token = user.generate_token()
-    #     res.set_cookie('token', token, httponly=True, secure=True, samesite="None", max_age=3600 * 24)
-    #     session[token] = {"user_id": user.user_id, "user": user.email_addr,
-    #                       "expires": datetime.now(tz=timezone.utc) + timedelta(1)}
-    #     print(session.__dict__)
-    #     return res
-
     def post(self):
-        args = login_args.parse_args()
+        args = self.login_args.parse_args()
         print(args)
         email = args['email']
         password = args['password']
@@ -89,7 +35,6 @@ class Login(Resource):
             return abort(404, message="user doesn't exist")
 
         if user.check_password(password):
-            # return self.generate_session(user)
             if user.is_authenticated:
                 if login_user(user):
                     return output_json(user.to_dict(), 200)
@@ -100,9 +45,13 @@ class Login(Resource):
 
 
 class Register(Resource):
-    @staticmethod
-    def post():
-        args = register_args.parse_args()
+    register_args = reqparse.RequestParser(bundle_errors=True)
+    register_args.add_argument('name', type=str, required=True, help="missing name")
+    register_args.add_argument('email', type=str, required=True, help="missing email")
+    register_args.add_argument('password', type=str, required=True, help="missing password")
+
+    def post(self):
+        args = self.register_args.parse_args()
         name = args['name']
         email = args['email']
         password = args['password']
@@ -119,8 +68,6 @@ class Register(Resource):
 
         user = Users.get_user(user.email_addr)
         if user:
-            # return Login.generate_session(user)
-            # login_user(user, remember=True)
             tkn = VerificationTokens.new(user_id=user.user_id, cat='auth')
             print(tkn)
             send_mail(user.email_addr, "Account Verification", str(tkn))
@@ -131,18 +78,18 @@ class Register(Resource):
 class Logout(Resource):
     @login_required
     def get(self):
-        # session.pop(request.cookies.get('token'))
-        # print(session)
-        # res = output_json({"message": "logged out"}, 200)
-        # res.delete_cookie('token')
         logout_user()
         return 200
 
 
 class ResetPassword(Resource):
-    @staticmethod
-    def post():
-        args = recover_args.parse_args(strict=True)
+    recover_args = reqparse.RequestParser(bundle_errors=True)
+    recover_args.add_argument('email', type=str, required=False, help='missing email')
+    recover_args.add_argument('token', type=str, required=False, help='missing token')
+    recover_args.add_argument('password', type=str, required=False, help="missing password")
+
+    def post(self):
+        args = self.recover_args.parse_args(strict=True)
         print(args)
         if args['token']:
             tkn = VerificationTokens.get(args['token'])
@@ -177,10 +124,14 @@ class ResetPassword(Resource):
 
 
 class AuthUser(Resource):
+    get_verification_args = reqparse.RequestParser(bundle_errors=True)
+    get_verification_args.add_argument('email', type=str, required=True, help='missing email')
 
-    @staticmethod
-    def get():
-        args = get_verification_args.parse_args()
+    verification_args = reqparse.RequestParser(bundle_errors=True)
+    verification_args.add_argument('token', type=str, required=True, help='missing token')
+
+    def get(self):
+        args = self.get_verification_args.parse_args()
         user = Users.get_user(email=args['email'])
         if user:
             if not user.authenticated:
@@ -191,9 +142,8 @@ class AuthUser(Resource):
             return abort(400, message="user already authenticated")
         return abort(404, message="user not found")
 
-    @staticmethod
-    def post():
-        args = verification_args.parse_args()
+    def post(self):
+        args = self.verification_args.parse_args()
         print(args['token'])
         tkn = VerificationTokens.get(args['token'])
         if tkn.cat == 'auth' and not tkn.used:

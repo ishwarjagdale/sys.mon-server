@@ -186,10 +186,19 @@ class ActivityLogs(db.Model):
         db.session.add(act)
         db.session.commit()
 
+    @staticmethod
+    def get(user_id, sys_id=None):
+        if sys_id:
+            return [x.to_dict() for x in ActivityLogs.query.join(Systems).filter(
+                ActivityLogs.system_id == sys_id,
+                Systems.user_id == user_id
+            ).all()]
+        return [x.to_dict() for x in ActivityLogs.query.join(Systems).filter(ActivityLogs.system.user_id == user_id).all()]
+
     def to_dict(self):
         return {
-            "system_id": self.system_id,
-            "date_happened": self.date_happened,
+            "sys_id": self.system_id,
+            "date_happened": str(self.date_happened),
             "activity_id": self.activity_id,
             "type": self.type,
             "description": self.description,

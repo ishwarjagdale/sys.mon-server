@@ -80,7 +80,7 @@ class Sock:
         connection_pool.pop(self.system.sys_id)
 
 
-class System(Resource):
+class SystemView(Resource):
     get_sys = reqparse.RequestParser()
     get_sys.add_argument('sys_id', type=str, required=False, help="missing system id")
 
@@ -111,7 +111,7 @@ class System(Resource):
 
     @login_required
     def post(self):
-        args = System.post_sys.parse_args()
+        args = SystemView.post_sys.parse_args()
         try:
             system = Systems.add_system(name=args['sys_name'], os=args['os'],
                                         user_id=current_user.user_id)

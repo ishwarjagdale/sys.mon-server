@@ -5,9 +5,10 @@ from flask_cors import CORS
 from flask_restful import Api, Resource
 
 from database import db, Systems
-from modules.activity import Activity
+from modules.activity import ActivityView
 from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager
-from modules.system import System, Sock, exe
+from modules.system import SystemView, Sock, exe
+from modules.rules import RulesView
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -45,10 +46,13 @@ api.add_resource(ResetPassword, '/auth/reset-password')
 api.add_resource(AuthUser, '/auth/verification')
 
 # System
-api.add_resource(System, '/api/system')
+api.add_resource(SystemView, '/api/system')
 
 # Activity
-api.add_resource(Activity, '/api/system/activity')
+api.add_resource(ActivityView, '/api/system/activity')
+
+# Rules
+api.add_resource(RulesView, '/api/system/rules')
 
 if __name__ == "__main__":
     try:

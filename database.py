@@ -168,6 +168,30 @@ class Rules(db.Model):
     max_limit = db.Column(db.INTEGER, nullable=False)
     percent = db.Column(db.BOOLEAN, default=True, nullable=False)
 
+    @staticmethod
+    def new(sys_id, resource, max_limit, percent=True):
+        rule = Rules(system_id=sys_id, resource=resource, max_limit=max_limit, percent=percent)
+        db.session.add(rule)
+        db.session.commit()
+
+    @staticmethod
+    def get(sys_id, resource=None):
+        if resource:
+            return Rules.query.filter_by(system_id=sys_id, resource=resource).first()
+        rules = {}
+        for r in Rules.query.filter_by(system_id=sys_id).all():
+            rules[r.resource] = r.to_dict()
+        return rules
+
+    def to_dict(self):
+        return {
+            "sys_id": self.system_id,
+            "resource": self.resource,
+            "max_limit": self.max_limit,
+            "percent": self.percent
+
+        }
+
 
 class ActivityLogs(db.Model):
     __table_name__ = "ActivityLogs"
@@ -193,7 +217,8 @@ class ActivityLogs(db.Model):
                 ActivityLogs.system_id == sys_id,
                 Systems.user_id == user_id
             ).all()]
-        return [x.to_dict() for x in ActivityLogs.query.join(Systems).filter(ActivityLogs.system.user_id == user_id).all()]
+        return [x.to_dict() for x in
+                ActivityLogs.query.join(Systems).filter(ActivityLogs.system.user_id == user_id).all()]
 
     def to_dict(self):
         return {

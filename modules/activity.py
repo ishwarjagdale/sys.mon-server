@@ -3,7 +3,7 @@ from database import ActivityLogs, Systems
 from flask_login import login_required, current_user
 
 
-class Activity(Resource):
+class ActivityView(Resource):
     post_args = reqparse.RequestParser()
     post_args.add_argument('sys_id', type=str, required=True, help="sys_id: system id missing")
     post_args.add_argument('v_token', type=str, required=True, help="v_token: verification token missing")

@@ -9,6 +9,7 @@ from modules.activity import ActivityView
 from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager
 from modules.system import SystemView, Sock, exe
 from modules.rules import RulesView
+from modules.monView import MonView
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -27,7 +28,7 @@ with app.app_context():
     login_manager.init_app(app)
     db.init_app(app)
     db.create_all()
-    Thread(target=start_binding, name='websocks').start()
+    Thread(target=start_binding, name='websocks', daemon=True).start()
 
 
 class HelloWorld(Resource):
@@ -53,6 +54,9 @@ api.add_resource(ActivityView, '/api/system/activity')
 
 # Rules
 api.add_resource(RulesView, '/api/system/rules')
+
+# Mon
+api.add_resource(MonView, '/api/system/mon')
 
 if __name__ == "__main__":
     try:

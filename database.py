@@ -164,7 +164,8 @@ class VerificationTokens(db.Model):
 class Rules(db.Model):
     __table_name__ = "Rules"
     system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id', ondelete="CASCADE"))
-    resource = db.Column(db.VARCHAR, primary_key=True)
+    resource = db.Column(db.VARCHAR, nullable=False)
+    p_key = db.PrimaryKeyConstraint(system_id, resource)
     max_limit = db.Column(db.INTEGER, nullable=False)
     percent = db.Column(db.BOOLEAN, default=True, nullable=False)
 

@@ -1,4 +1,4 @@
-import websockets.exceptions
+from websocket import _exceptions
 from flask_restful import Resource, request, output_json, abort, reqparse
 from flask_login import login_required, current_user
 from database import Rules, Systems, db
@@ -33,7 +33,7 @@ class RulesView(Resource):
                     ws = connection_pool[system.sys_id].ws
                     if ws:
                         ws.send('update_mon')
-            except websockets.exceptions.WebSocketException as e:
+            except _exceptions.WebSocketException as e:
                 print(system.sys_id, e)
             return output_json(rules, 200)
         return abort(404, message="system not found")

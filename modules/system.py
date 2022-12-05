@@ -1,8 +1,6 @@
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from flask import current_app
 from flask_login import current_user
 from flask_restful import Resource, reqparse, output_json, abort, request
 from sqlalchemy.exc import SQLAlchemyError
@@ -38,6 +36,7 @@ class Sock:
 
     def on_open(self, *args):
         print(f'[ WEBSOCK < {self.system.ip_addr} >: OPEN ]', self.system.name)
+        connection_pool[self.system.sys_id] = self
         self.re_conn = False
 
     def on_close(self, *args):
@@ -58,17 +57,17 @@ class Sock:
         print(f'[ WEBSOCK < {self.system.ip_addr} >: ERROR ]', self.system.name)
 
     def alert_user(self, ws, close_status_code, close_msg):
-        if os.environ["FLASK_ENV"] == "development":
-            print(f"SYSTEM DOWN | {self.system.name} | {close_status_code} | {close_msg}")
-            return True
+
         query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
             .order_by(db.desc(ActivityLogs.date_happened)).first()
-        if query and query.type not in ["SHUTDOWN", "DOWN"]:
+        if query:
+            if query.type not in ["SHUTDOWN", "DOWN"]:
+                ActivityLogs.new(self.system.sys_id, "DOWN",
+                                 "can't connect to the system, reason unknown", "system unreachable")
+        else:
             ActivityLogs.new(self.system.sys_id, "DOWN",
                              "can't connect to the system, reason unknown", "system unreachable")
-        send_mail(to=self.system.user.email_addr, subject='SYSTEM DOWN!', message=f"""
-        {close_status_code}: {close_msg}
-        """)
+        send_mail(to=self.system.user.email_addr, subject='SYSTEM DOWN!', message=f"{close_status_code}: {close_msg}")
 
         self.destruct()
 
@@ -87,11 +86,6 @@ class SystemView(Resource):
     post_sys = reqparse.RequestParser()
     post_sys.add_argument('sys_name', type=str, required=True, help="missing system name")
     post_sys.add_argument('os', type=str, required=True, help="missing os")
-
-    patch_sys = reqparse.RequestParser()
-    patch_sys.add_argument('v_token', type=str, required=True, help="missing verification token")
-    patch_sys.add_argument('sys_id', type=str, required=True, help="missing sys_id")
-    patch_sys.add_argument('port', type=int, required=True, help="missing port number")
 
     put_sys = reqparse.RequestParser()
     put_sys.add_argument('sys_id', type=str, required=True, help="missing system id")
@@ -138,24 +132,6 @@ class SystemView(Resource):
             db.session.commit()
             return output_json(system.to_dict(), 200)
         return 404
-
-    def patch(self):
-        args = self.patch_sys.parse_args()
-        print(args)
-        sys_id, v_token = args['sys_id'], args['v_token']
-        addr = request.environ['HTTP_X_FORWARDED_FOR'] if 'HTTP_X_FORWARDED_FOR' in request.environ else \
-            request.environ['REMOTE_ADDR']
-        port = args['port']
-        system = Systems.get_system(sys_id=sys_id, v_token=v_token)
-        system.ip_addr = f"{addr}:{port}"
-        print(addr, port)
-        db.session.commit()
-        ActivityLogs.new(system.sys_id, "PATCH", "mon's ip address changed", "mon restarted!")
-
-        if system.sys_id not in connection_pool:
-            exe.submit(Sock().run, system, current_app._get_current_object())
-
-        return 200
 
     @login_required
     def delete(self):

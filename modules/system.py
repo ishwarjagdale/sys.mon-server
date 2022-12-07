@@ -67,7 +67,11 @@ class Sock:
         else:
             ActivityLogs.new(self.system.sys_id, "DOWN",
                              "can't connect to the system, reason unknown", "system unreachable")
-        send_mail(to=self.system.user.email_addr, subject='SYSTEM DOWN!', message=f"{close_status_code}: {close_msg}")
+        if self.system.alert:
+            send_mail(to=self.system.user.email_addr,
+                      subject='SYSTEM DOWN!',
+                      message=f"{close_status_code}: {close_msg}"
+                      )
 
         self.destruct()
 

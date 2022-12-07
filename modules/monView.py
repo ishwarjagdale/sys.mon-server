@@ -36,9 +36,12 @@ class MonView(Resource):
         if system:
             ActivityLogs.new(system.sys_id, act_type="RULE_VIOLATE", desc=str(args['report']['stats']),
                              message=args['report']['activity']['message'])
-            user = Users.get_user(user_id=system.user_id)
-            send_mail(to=user.email_addr, subject=f"{system.name} crossed {args['report']['activity']['resource']} rule",
-                      message=f"{args['report']['activity']['message']}\n{str(args['report']['stats'])}")
+            if system.alert:
+                user = Users.get_user(user_id=system.user_id)
+                send_mail(to=user.email_addr,
+                          subject=f"{system.name} crossed {args['report']['activity']['resource']} rule",
+                          message=f"{args['report']['activity']['message']}\n{str(args['report']['stats'])}"
+                          )
             return 200
         return abort(404, message="system not found")
 

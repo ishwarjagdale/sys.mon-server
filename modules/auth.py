@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_restful import Resource, reqparse, abort, output_json
-from modules.smtp_email import send_mail
+from modules.smtp_email import send_mail, email_exists
 from database import Users, db, VerificationTokens
 
 
@@ -59,6 +59,8 @@ class Register(Resource):
         if Users.get_user(email):
             return abort(409, message="user exists")
         d_now = datetime.now()
+        if not email_exists(email):
+            return abort(400, message="email doesn't exists")
         user = Users(name=name, email_addr=email,
                      password=hashlib.sha256(
                          bytes(str(d_now.timestamp()).replace(".", password), encoding='utf-8')).hexdigest(),
@@ -70,7 +72,7 @@ class Register(Resource):
         if user:
             tkn = VerificationTokens.new(user_id=user.user_id, cat='auth')
             print(tkn)
-            send_mail(user.email_addr, "Account Verification", str(tkn))
+            send_mail(user.email_addr, "Account Verification", f"Authentication token: {tkn['token']}")
             return output_json(user.to_dict(), 200)
         return abort(400, status_code=400, message="Something went wrong")
 

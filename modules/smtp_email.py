@@ -28,3 +28,13 @@ Subject: {subject}
             send_mail(to, subject, message, recur=True)
 
     return False
+
+
+def email_exists(email):
+    try:
+        context = ssl.create_default_context()
+        server = smtplib.SMTP_SSL(smtp_server, port, context=context)
+        return server.verify("ishwarrules@gmail.com")[0] == 250
+    except smtplib.SMTPException or TimeoutError or Exception as e:
+        print(e)
+    return None

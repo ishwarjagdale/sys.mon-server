@@ -1,8 +1,7 @@
-from websocket import _exceptions
-from flask_restful import Resource, request, output_json, abort, reqparse
 from flask_login import login_required, current_user
+from flask_restful import Resource, request, output_json, abort, reqparse
+
 from database import Rules, Systems, db
-from modules.system import connection_pool
 
 
 class RulesView(Resource):
@@ -28,13 +27,6 @@ class RulesView(Resource):
             Rules.new(sys_id=args['sys_id'], resource=args['resource'], max_limit=args['max_limit'],
                       percent=args['percent'])
             rules = Rules.get(sys_id=args['sys_id'])
-            try:
-                if system.sys_id in connection_pool:
-                    ws = connection_pool[system.sys_id].ws
-                    if ws:
-                        ws.send('update_mon')
-            except _exceptions.WebSocketException as e:
-                print(system.sys_id, e)
             return output_json(rules, 200)
         return abort(404, message="system not found")
 
@@ -50,13 +42,6 @@ class RulesView(Resource):
                     db.session.delete(rule)
                     db.session.commit()
                     rules = Rules.get(sys_id=request.args['id'])
-                    try:
-                        if system.sys_id in connection_pool:
-                            ws = connection_pool[system.sys_id].ws
-                            if ws:
-                                ws.send('update_mon')
-                    except websockets.exceptions.WebSocketException as e:
-                        print(system.sys_id, e)
                     return output_json(rules, 200)
                 return abort(404, message="rule doesn't exist")
             return abort(404, message="system not found")

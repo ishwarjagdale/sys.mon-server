@@ -58,8 +58,8 @@ class Register(Resource):
         if Users.get_user(email):
             return abort(409, message="user exists")
         d_now = datetime.now()
-        if not email_exists(email):
-            return abort(400, message="email doesn't exists")
+        # if not email_exists(email):
+        #     return abort(400, message="email doesn't exists")
         user = Users(name=name, email_addr=email,
                      password=hashlib.sha256(
                          bytes(str(d_now.timestamp()).replace(".", password), encoding='utf-8')).hexdigest(),

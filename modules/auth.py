@@ -5,8 +5,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from flask_restful import Resource, reqparse, abort, output_json
 from modules.smtp_email import send_mail, email_exists
 from database import Users, db, VerificationTokens
-
-
+from modules.smtp_email import email_exists
 login_manager = LoginManager()
 
 
@@ -158,3 +157,25 @@ class AuthUser(Resource):
                     return abort(500, message="Login failed")
                 return abort(500, message="Authentication Failed")
         return abort(404, message="Invalid Request")
+
+
+class UserUpdates(Resource):
+
+    args = reqparse.RequestParser()
+    args.add_argument('payload', type=dict, required=True, help='missing payload')
+
+    @login_required
+    def post(self):
+        payload = self.args.parse_args()['payload']
+        print(payload)
+        user = Users.get_user(user_id=current_user.user_id)
+        if user:
+            for i in payload:
+                if i == 'password':
+                    user.password = hashlib.sha256(
+                        bytes(str(user.date_created.timestamp()).replace(".", payload['password']), encoding='utf-8')).hexdigest()
+                else:
+                    user.__setattr__(i, payload[i])
+            db.session.commit()
+            return 200
+        return abort(404, message='user not found')

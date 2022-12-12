@@ -6,7 +6,7 @@ from flask_restful import Api, Resource
 
 from database import db, Systems
 from modules.activity import ActivityView
-from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager
+from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager, UserUpdates
 from modules.system import SystemView, Sock, exe
 from modules.rules import RulesView
 from modules.monView import MonView
@@ -48,6 +48,9 @@ api.add_resource(AuthUser, '/auth/verification')
 
 # System
 api.add_resource(SystemView, '/api/system')
+
+# User
+api.add_resource(UserUpdates, '/api/user')
 
 # Activity
 api.add_resource(ActivityView, '/api/system/activity')

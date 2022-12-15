@@ -74,8 +74,7 @@ class Users(db.Model):
 
 
 def generate_sys_id(context):
-    return hashlib.sha256(bytes(str(context.get_current_parameters()['user_id']) +
-                                str(datetime.now()), encoding='utf-8')).hexdigest()
+    return hashlib.sha256(bytes(str(context.get_current_parameters()['user_id']) + str(datetime.now()), encoding='utf-8')).hexdigest()
 
 
 def gen_token():
@@ -217,7 +216,7 @@ class ActivityLogs(db.Model):
             return [x.to_dict() for x in ActivityLogs.query.join(Systems).filter(
                 ActivityLogs.system_id == sys_id,
                 Systems.user_id == user_id
-            ).all()]
+            ).order_by(db.desc(ActivityLogs.date_happened)).all()]
         return [x.to_dict() for x in
                 ActivityLogs.query.join(Systems).filter(ActivityLogs.system.user_id == user_id).all()]
 

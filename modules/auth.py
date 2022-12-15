@@ -3,9 +3,10 @@ from datetime import datetime
 
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_restful import Resource, reqparse, abort, output_json
-from modules.smtp_email import send_mail, email_exists
+
 from database import Users, db, VerificationTokens
-from modules.smtp_email import email_exists
+from modules.smtp_email import send_mail
+
 login_manager = LoginManager()
 
 

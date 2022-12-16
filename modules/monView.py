@@ -34,15 +34,19 @@ class MonView(Resource):
         args = self.post_sys.parse_args()
         system = Systems.get_system(sys_id=args['sys_id'], v_token=args['v_token'])
         if system:
-            ActivityLogs.new(system.sys_id, act_type="RULE_VIOLATE", desc=str(args['report']['stats']),
-                             message=args['report']['activity']['message'])
-            if system.alert:
-                user = Users.get_user(user_id=system.user_id)
-                send_mail(to=user.email_addr,
-                          subject=f"{system.name} crossed {args['report']['activity']['resource']} rule",
-                          message=f"{args['report']['activity']['message']}\n{str(args['report']['stats'])}"
-                          )
-            return 200
+            query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
+                .order_by(db.desc(ActivityLogs.date_happened)).first()
+            if not (query and query.type == "RULE_VIOLATE" and args['report']['activity']['resource'] in query.message):
+
+                ActivityLogs.new(system.sys_id, act_type="RULE_VIOLATE", desc=str(args['report']['stats']),
+                                 message=args['report']['activity']['message'])
+                if system.alert:
+                    user = Users.get_user(user_id=system.user_id)
+                    send_mail(to=user.email_addr,
+                              subject=f"{system.name} crossed {args['report']['activity']['resource']} rule",
+                              message=f"{args['report']['activity']['message']}\n{str(args['report']['stats'])}"
+                              )
+                return 200
         return abort(404, message="system not found")
 
     def patch(self):

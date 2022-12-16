@@ -27,7 +27,7 @@ class Sock:
 
         if self.system and self.app:
             with self.app.app_context():
-                self.ws = WebSocketApp(f"ws://{self.system.ip_addr}",
+                self.ws = WebSocketApp(f"wss://{self.system.ip_addr}",
                                        on_open=self.on_open,
                                        on_close=self.alert_user if self.re_conn else self.on_close,
                                        on_error=self.on_error,

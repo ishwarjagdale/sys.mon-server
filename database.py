@@ -74,7 +74,8 @@ class Users(db.Model):
 
 
 def generate_sys_id(context):
-    return hashlib.sha256(bytes(str(context.get_current_parameters()['user_id']) + str(datetime.now()), encoding='utf-8')).hexdigest()
+    return hashlib.sha256(
+        bytes(str(context.get_current_parameters()['user_id']) + str(datetime.now()), encoding='utf-8')).hexdigest()
 
 
 def gen_token():
@@ -213,18 +214,38 @@ class ActivityLogs(db.Model):
     @staticmethod
     def get(user_id, sys_id=None):
         if sys_id:
-            return [x.to_dict() for x in ActivityLogs.query.join(Systems).filter(
+            logs = db.session.query(ActivityLogs, Systems.name).join(Systems).filter(
                 ActivityLogs.system_id == sys_id,
                 Systems.user_id == user_id
-            ).order_by(db.desc(ActivityLogs.date_happened)).all()]
-        return [x.to_dict() for x in
-                ActivityLogs.query.join(Systems).filter(ActivityLogs.system.user_id == user_id).all()]
+            ).order_by(db.desc(ActivityLogs.date_happened)).all()
+        else:
+            logs = db.session.query(ActivityLogs, Systems.name).join(Systems).filter(Systems.user_id == user_id
+                                                                                     ).order_by(
+                db.desc(ActivityLogs.date_happened)).all()
+        pl = []
+        for i in logs:
+            d = i[0].to_dict()
+            d['name'] = i[1]
+            pl.append(d)
+        return pl
+
+    @staticmethod
+    def delete(user_id):
+        try:
+            for i in ActivityLogs.query.join(Systems).filter(
+                    Systems.sys_id == ActivityLogs.system_id, Systems.user_id == user_id).all():
+                db.session.delete(i)
+            db.session.commit()
+            return True
+        except Exception as e:
+            print(e)
+            return False
 
     def to_dict(self):
         return {
             "sys_id": self.system_id,
-            "date_happened": str(self.date_happened),
             "activity_id": self.activity_id,
+            "date_happened": str(self.date_happened),
             "type": self.type,
             "description": self.description,
             "message": self.message

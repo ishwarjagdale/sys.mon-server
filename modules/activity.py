@@ -12,10 +12,11 @@ class ActivityView(Resource):
 
     @login_required
     def get(self):
-        if "id" in request.args:
-            logs = ActivityLogs.get(user_id=current_user.user_id, sys_id=request.args["id"])
-            if logs:
+        logs = ActivityLogs.get(user_id=current_user.user_id, sys_id=request.args.get('id', None))
+        if logs is not None:
+            if 'id' in request.args:
                 return output_json({f"{request.args['id']}": logs}, 200)
+            return output_json({"logs": logs}, 200)
         return abort(400, message="missing sys_id in arguments")
 
     def post(self):
@@ -27,3 +28,9 @@ class ActivityView(Resource):
             ActivityLogs.new(system.sys_id, act_type, description, message)
             return 200
         return abort(404, message="system not found")
+
+    @staticmethod
+    def delete():
+        if ActivityLogs.delete(user_id=current_user.user_id):
+            return 200
+        return abort(500, message="something went wrong")

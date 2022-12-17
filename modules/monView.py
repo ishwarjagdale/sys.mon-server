@@ -34,7 +34,7 @@ class MonView(Resource):
         args = self.post_sys.parse_args()
         system = Systems.get_system(sys_id=args['sys_id'], v_token=args['v_token'])
         if system:
-            query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
+            query = ActivityLogs.query.join(Systems).filter(ActivityLogs.system_id == Systems.sys_id) \
                 .order_by(db.desc(ActivityLogs.date_happened)).first()
             if not (query and query.type == "RULE_VIOLATE" and args['report']['activity']['resource'] in query.message):
 
@@ -46,7 +46,7 @@ class MonView(Resource):
                               subject=f"{system.name} crossed {args['report']['activity']['resource']} rule",
                               message=f"{args['report']['activity']['message']}\n{str(args['report']['stats'])}"
                               )
-                return 200
+            return 200
         return abort(404, message="system not found")
 
     def patch(self):

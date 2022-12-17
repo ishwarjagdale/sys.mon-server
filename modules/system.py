@@ -58,7 +58,7 @@ class Sock:
 
     def alert_user(self, ws, close_status_code, close_msg):
 
-        query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
+        query = ActivityLogs.query.join(Systems).filter(ActivityLogs.system_id == Systems.sys_id) \
             .order_by(db.desc(ActivityLogs.date_happened)).first()
         if query:
             if query.type not in ["SHUTDOWN", "DOWN"]:

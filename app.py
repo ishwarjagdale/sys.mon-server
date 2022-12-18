@@ -7,28 +7,21 @@ from flask_restful import Api, Resource
 from database import db, Systems
 from modules.activity import ActivityView
 from modules.auth import Login, Register, Logout, ResetPassword, AuthUser, login_manager, UserUpdates
-from modules.system import SystemView, Sock, exe
+from modules.system import SystemView
 from modules.rules import RulesView
 from modules.monView import MonView
+from sock_pool import runner
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 api = Api(app)
 cors = CORS(app, supports_credentials=True)
 
-
-def start_binding():
-    with app.app_context():
-        s_queue = Systems.query.filter(Systems.enable_mon == 'true', Systems.ip_addr != 'null').all()
-        for s in s_queue:
-            exe.submit(Sock().run, s, current_app._get_current_object())
-
-
 with app.app_context():
     login_manager.init_app(app)
     db.init_app(app)
     db.create_all()
-    Thread(target=start_binding, name='websocks', daemon=True).start()
+    runner.init_app(app)
 
 
 class HelloWorld(Resource):

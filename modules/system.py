@@ -1,86 +1,9 @@
-import time
-from concurrent.futures import ThreadPoolExecutor
-
 from flask_login import current_user
 from flask_restful import Resource, reqparse, output_json, abort, request
 from sqlalchemy.exc import SQLAlchemyError
-from websocket import WebSocketApp
 
-from database import Systems, ActivityLogs, db
+from database import Systems, db
 from modules.auth import login_required
-from modules.smtp_email import send_mail
-
-connection_pool = dict()
-exe = ThreadPoolExecutor()
-
-
-class Sock:
-    def __init__(self):
-        self.app = None
-        self.re_conn = False
-        self.system = None
-        self.ws = None
-
-    def run(self, system=None, app=None):
-        self.system = system if system else self.system
-        self.app = app if app else self.app
-
-        if self.system and self.app:
-            with self.app.app_context():
-                self.ws = WebSocketApp(f"wss://{self.system.ip_addr}",
-                                       on_open=self.on_open,
-                                       on_close=self.alert_user if self.re_conn else self.on_close,
-                                       on_error=self.on_error,
-                                       keep_running=True)
-                self.ws.run_forever()
-
-    def on_open(self, *args):
-        print(f'[ WEBSOCK < {self.system.ip_addr} >: OPEN ]', self.system.name)
-        connection_pool[self.system.sys_id] = self
-        self.re_conn = False
-
-    def on_close(self, *args):
-        print(f'[ WEBSOCK < {self.system.ip_addr} >: RECONNECTING ]', self.system.name)
-        time.sleep(10)
-        query = ActivityLogs.query.filter(ActivityLogs.system_id == self.system.sys_id) \
-            .order_by(db.desc(ActivityLogs.date_happened)).first()
-        if query and query.type in ["SHUTDOWN", "DOWN"]:
-            print(f'[ WEBSOCK < {self.system.ip_addr} >: DESTRUCT ]', self.system.name)
-            self.destruct()
-        else:
-            system = Systems.get_system(sys_id=self.system.sys_id, v_token=self.system.verification_token)
-            if system and system.enable_mon:
-                self.re_conn = True
-                self.run(system)
-
-    def on_error(self, *args):
-        print(f'[ WEBSOCK < {self.system.ip_addr} >: ERROR ]', self.system.name)
-
-    def alert_user(self, ws, close_status_code, close_msg):
-
-        query = ActivityLogs.query.join(Systems).filter(ActivityLogs.system_id == Systems.sys_id) \
-            .order_by(db.desc(ActivityLogs.date_happened)).first()
-        if query:
-            if query.type not in ["SHUTDOWN", "DOWN"]:
-                ActivityLogs.new(self.system.sys_id, "DOWN",
-                                 "can't connect to the system, reason unknown", "system unreachable")
-        else:
-            ActivityLogs.new(self.system.sys_id, "DOWN",
-                             "can't connect to the system, reason unknown", "system unreachable")
-        if self.system.alert:
-            send_mail(to=self.system.user.email_addr,
-                      subject='SYSTEM DOWN!',
-                      message=f"{close_status_code}: {close_msg}"
-                      )
-
-        self.destruct()
-
-    def destruct(self):
-        try:
-            self.ws.close()
-        except Exception as e:
-            print(e)
-        connection_pool.pop(self.system.sys_id)
 
 
 class SystemView(Resource):

@@ -1,6 +1,6 @@
 import smtplib
 import ssl
-from flask import current_app as app
+from config import SMTP_USER, SMTP_PASSWORD
 
 smtp_server = 'smtp.gmail.com'
 port = 465
@@ -10,9 +10,9 @@ def send_mail(to, subject, message, recur=False):
     try:
         context = ssl.create_default_context()
         server = smtplib.SMTP_SSL(smtp_server, port, context=context)
-        if server.login(user=app.config.get('SMTP_USER'), password=app.config.get("SMTP_PASSWORD"))[0] == 235:
-            recep = server.sendmail(from_addr=app.config.get('SMTP_USER'), to_addrs=[to],
-                                    msg=f"""From: {app.config.get('SMTP_USER')}
+        if server.login(user=SMTP_USER, password=SMTP_PASSWORD)[0] == 235:
+            recep = server.sendmail(from_addr=SMTP_USER, to_addrs=[to],
+                                    msg=f"""From: {SMTP_USER}
 To: {", ".join(to) if type(to) == list else to}
 Subject: {subject}
 

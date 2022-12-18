@@ -1,8 +1,8 @@
 from flask_restful import Resource, reqparse, request, output_json, abort
 from database import Systems, db, ActivityLogs, Rules, Users
 from flask import current_app
-from modules.system import connection_pool, exe, Sock
 from modules.smtp_email import send_mail
+from sock_pool import connections, runner
 
 
 class MonView(Resource):
@@ -62,7 +62,7 @@ class MonView(Resource):
         db.session.commit()
         ActivityLogs.new(system.sys_id, "PATCH", "mon's ip address changed", "mon restarted!")
 
-        if system.sys_id not in connection_pool:
-            exe.submit(Sock().run, system, current_app._get_current_object())
+        if system.sys_id not in connections:
+            runner.add_system(system, current_app._get_current_object())
 
         return 200

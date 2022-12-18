@@ -11,7 +11,7 @@ class WebSocConn:
         self.retried = False
         self.app = app
         self.ws = WebSocketApp(
-            url=f"ws://{system.ip_addr}",
+            url=f"wss://{system.ip_addr}",
             on_open=self.on_open,
             on_close=self.on_close,
             on_error=self.on_error,

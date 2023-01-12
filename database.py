@@ -76,11 +76,11 @@ class Users(db.Model):
 
 def generate_sys_id(context):
     return hashlib.sha256(
-        bytes(str(context.get_current_parameters()['user_id']) + str(datetime.now()), encoding='utf-8')).hexdigest()
+        bytes(str(context.get_current_parameters()['user_id']) + str(datetime.datetime.now()), encoding='utf-8')).hexdigest()
 
 
 def gen_token():
-    return hashlib.sha256(bytes(str(datetime.now()), encoding='utf-8')).hexdigest()
+    return hashlib.sha256(bytes(str(datetime.datetime.now()), encoding='utf-8')).hexdigest()
 
 
 class Systems(db.Model):
@@ -88,7 +88,7 @@ class Systems(db.Model):
 
     sys_id = db.Column(db.VARCHAR, primary_key=True, default=generate_sys_id)
     name = db.Column(db.VARCHAR(200), default=generate_sys_id, nullable=False)
-    date_added = db.Column(db.DateTime, default=datetime.now(), nullable=False)
+    date_added = db.Column(db.DateTime, default=datetime.datetime.now(), nullable=False)
     user_id = db.Column(db.INTEGER, db.ForeignKey('users.user_id'), nullable=False)
     ip_addr = db.Column(db.VARCHAR)
     verification_token = db.Column(db.VARCHAR, default=gen_token, nullable=False)
@@ -131,7 +131,7 @@ class VerificationTokens(db.Model):
 
     token = db.Column(db.VARCHAR, primary_key=True)
     user_id = db.Column(db.INTEGER, db.ForeignKey('users.user_id', ondelete="CASCADE"), nullable=False)
-    date_generated = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    date_generated = db.Column(db.DateTime, nullable=False, default=datetime.datetime.now())
     cat = db.Column(db.VARCHAR, nullable=False)
     used = db.Column(db.BOOLEAN, default=False, nullable=False)
 
@@ -199,7 +199,7 @@ class ActivityLogs(db.Model):
     __table_name__ = "ActivityLogs"
     system_id = db.Column(db.VARCHAR, db.ForeignKey('systems.sys_id', ondelete='CASCADE'))
     activity_id = db.Column(db.INTEGER, primary_key=True)
-    date_happened = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    date_happened = db.Column(db.DateTime, nullable=False, default=datetime.datetime.now())
     type = db.Column(db.VARCHAR, nullable=False)
     description = db.Column(db.VARCHAR, nullable=False)
     read = db.Column(db.BOOLEAN, default=False, nullable=False)

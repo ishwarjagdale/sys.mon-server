@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime
+import datetime
 
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_restful import Resource, reqparse, abort, output_json
@@ -58,12 +58,12 @@ class Register(Resource):
 
         if Users.get_user(email):
             return abort(409, message="user exists")
-        d_now = datetime.now()
+        d_now = datetime.datetime.now(datetime.timezone.utc).timestamp()
         # if not email_exists(email):
         #     return abort(400, message="email doesn't exists")
         user = Users(name=name, email_addr=email,
                      password=hashlib.sha256(
-                         bytes(str(d_now.timestamp()).replace(".", password), encoding='utf-8')).hexdigest(),
+                         bytes(str(d_now).replace(".", password), encoding='utf-8')).hexdigest(),
                      date_created=d_now)
         db.session.add(user)
         db.session.commit()
@@ -99,7 +99,7 @@ class ResetPassword(Resource):
                 if not tkn.used and tkn.cat == 'rcvr':
                     user = Users.get_user(user_id=tkn.user_id)
                     if user:
-                        user.password = hashlib.sha256(bytes(str(user.date_created.timestamp()).
+                        user.password = hashlib.sha256(bytes(str(user.date_created).
                                                              replace(".", args['password']), encoding='utf-8')). \
                             hexdigest()
                         db.session.commit()
@@ -174,7 +174,7 @@ class UserUpdates(Resource):
             for i in payload:
                 if i == 'password':
                     user.password = hashlib.sha256(
-                        bytes(str(user.date_created.timestamp()).replace(".", payload['password']), encoding='utf-8')).hexdigest()
+                        bytes(str(user.date_created).replace(".", payload['password']), encoding='utf-8')).hexdigest()
                 else:
                     user.__setattr__(i, payload[i])
             db.session.commit()
